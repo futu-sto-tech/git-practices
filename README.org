@@ -1,0 +1,170 @@
+# -*- visual-fill-column-width: 70; -*-
+#+title: Git practices
+
+Git is a crucial tool in our day-to-day work and enables a swift workflow. Having a clear git workflow in your team can alleviate a lot of daily stress. The main purposes of using git is to enable a Continuous Integration-like workflow and simplify troubleshooting. The great thing about git is that it is almost impossible to lose work once it has been committed.
+
+* Rules to live by
+
+These are a few guidelines I have seen followed, more or less, by teams where the git workflow has worked really well.
+
+** Keep the branching strategy as simple as possible
+
+If there's no need for handling multiple concurrent releases go for a so called GitHub flow approach:
+
++ Have one main branch (master or what you want to call it)
++ Features and hotfixes branch off of the main branch into feature branches
++ Branch naming conventions (feature/* and fix/*) clarifies the intent with the branch and  allow you to setup specific hooks based on the type of branch
+
+The main branch should be assumed to be in an always deployable state and is automatically deployed to the staging/test environment. Production releases are handled through tags. If you use GitHub, their [[https://cli.github.com/][command line tool]] is highly recommended for creating releases (and also PRs!).
+
+You can also deploy to production by merging into a production branch. Why this approach is less optimal since you end up with more branch management and constantly run the risk of the production branch diverging from your main branch if a merge goes wrong. Using release tags is in my mind clearer and easier to document. However, this depends on your requirements. It might be a lot easier to use a branch-based approach if you have to support multiple versions of the project for instance.
+
+** Always rebase your feature branches onto the main branch
+
+Never ever for no reason what so ever merge the main branch into your feature branch (that is, *never* click on the /update branch/ button on GitHub.
+
+Rebasing onto main has the following benefits:
++ The feature branch git history is linear and only contains your commits
++ The main branch history is also kept linear and it is very easy to see when a feature landed
++ Debugging becomes a lot simpler since you just need to follow the linear git log back one commit at a time
++ It's easy for other feature branches to merge into main as well without confusing merge conflicts
+
+** Ensure the feature branch is up-to-date with main before merging
+
+This ensures that your main branch history stays linear and easy to follow and can be enforced in your Github settings section.
+
+** Strive to keep your feature branches short-lived
+
+The shorter your branches (PRs) live, the less likely you are to encounter complex merge conflicts.
+
+One good way of avoiding long-lived branches even for complicated features is to use feature flags so you can deliver the feature piece-by-piece. A good project code structure can also help in keeping the feature isolated so it can be implemented incrementally.
+
+** Avoid staging changes which are irrelevant to the feature/fix
+
+The shorter a PR is, the easier it is for the reviewer and the more likely it is that potential bugs are caught. If the feature is big you can split it up into separate commits for better readability.
+
+Use hunks in order to stage or discard parts of files by using ~git add --patch~. Your editor most likely has a more user-friendly interface to do it.
+
+** Let the person who created the PR merge it in
+
+Sometimes the person might realize something they forgot to do the branch.
+
+** Write as descriptive git messages as you can
+
+The better you as a team are at writing commit messages, the more useful the git log will be as a documentation resource.
+
+However, do not overdo it. You should still strive to make it as effortless as possible to commit your work. There's nothing worse than realizing in the middle of a huge refactoring session that you need to backtrack and should have commited an hour ago. Better to commit small and often.
+
+** Cleanup your commits before merging into main
+
+Use ~git rebase --interactive~ to clean up the branch commit history and make it more readable. This is a good opportunity to write proper commit messages using =reword= or remove some WIP commits by =squash=:ing them into previous commits. If you want to discard the commit message you can use =fixup= instead of =squash=.
+
+** Keep committing lightweight
+
+Adding linting, test hooks or tools like [[https://github.com/commitizen/cz-cli][Commitizen]] to ~git commit~ raises the hurdle to actually commit your work. It might be fine while the test suite still runs in under 1 second, but what about when it takes 20-30 seconds or more? Leave linting and testing up to your CI/CD pipeline instead and use ~git rebase --interactive~ for cleaning up commit messages.
+
+** Agree on your git workflow
+
+The most important thing is that you in your team agree on what git workflow you will follow
+
+* On rebasing
+
+** What happens when I rebase?
+
+Merging keeps the history of the commits intact and creates a merge commit which merges the changes together and resolves any conflicts.
+
+A rebase on the other hand takes a reference point (the latest main branch for instance) and applies your commits on top of that one at a time. This creates new commits with new git hashes, but they retain their original timestamps. This means that a commit with a newer timestamp can occur before a commit with an older one in the history.
+
+** Solving conflicts during a rebase
+
+Since each commit is added in turn when you rebase, you might end up having to solve conflicts for multiple commits. It is important therefore to not make additional changes when solving conflicts during a rebase because that can get really confusing and might trigger an avalanche of conflicts in succeeding commits. This seems to be the main reason why some people like merging more than rebasing since you only have to solve the  merge conflict for the actual merge commit.
+
+There are a few ways to mitigate rebase conflicts:
++ Short-lived feature branches will not diverge too much from the main branch so less conflicts
++ Proper modularization/separation of concerns
+
+If you end up feeling confused and scared in the middle of a ~git rebase~ you can always run ~git rebase --abort~. Then you can use ~git rebase --interactive~ to clean up your branch and squash commits. With fewer commits you will have to solve fewer conflicts, so squashing everything into a single commit can be really handy.
+
+** How do I rebase?
+
+#+begin_src shell
+  $ git checkout master
+  $ git pull
+  $ git checkout - # goes back to your previous branch (i.e. the feature branch)
+  $ git rebase master
+#+end_src
+
+** Oh no! Someone force pushed a rebased feature branch! What do I do?!
+
+No worries, you just need to reset your version of the branch to be in sync with the remote branch, first just make sure you are on the feature branch in question.
+
+If you have any uncommitted changes you can just stash them with ~git stash~ and then run:
+
+#+begin_src shell
+$ git reset --hard origin/feature-branch-name
+#+end_src
+
+Use ~git stash pop~ to put your local changes back.
+
+If you have commits which you need to add to the feature branch you have multiple options, the safest might be:
+
+1. Note the IDs of the commits you want to keep
+2. Create a backup branch ~git branch feature-branch-backup~ without switching to it
+3. ~git reset --hard origin/feature-branch-name~ to sync your local branch
+4. Cherry-pick the commits you need: ~git cherry-pick <ID>~
+5. Delete the backup branch
+
+* Git tricks
+
+** Quick checkouts
+
+~git checkout -~ takes you to your previous branch, really handy when jumping between your feature branch, main branch and then back again.
+
+** Log spelunking
+
+~git log~ is really useful, but the default view is not very informative. I recommend you create a handy alias like this:
+
+#+begin_src shell
+  alias glg='git log --graph --pretty="format:%C(yellow)%h%Cblue%d%Creset %s %C(white) %an, %ai%Creset"'
+#+end_src
+
+Which gives you a good overview of the history.
+
+** Stash 'n' pull
+
+~git pull --autostash~ is a great key-saver. Imagine you are in a feature branch with some uncommitted changes in your workspace and your colleague just pushed some changes you need. What you would normally do would be to ~git stash~ your changes, pull the latest changes and then do ~git stash pop~. This does all of that for you in one go. If you have also added some local commits, then you can add ~--rebase~ to automatically rebase your commits on top of your colleague's. ~--autostash~ also works with ~git rebase~.
+
+** Config hell
+
+You can put =.gitconfig= files in directories and have them take effect on all sub-folders by using the ~[IncludeIf]~ directive in your =~/.gitconfig= file:
+
+#+begin_src
+[includeIf "gitdir:~/Projects/work/"]
+  path = ~/Projects/work/.gitconfig
+#+end_src
+
+Now you can easily separate private and work git settings.
+
+** Patchwork
+
+You can easily see a set of changes by running ~git diff ref1..ref2~ where ~ref~ can be a commit hash (ID), branch or a tag. The great thing about this is that you can save that diff to a so called path file and later apply it to another branch:
+
+#+begin_src shell
+  $ git diff HEAD^5..HEAD > important-changes.patch
+  $ git checkout some-other-branch
+  $ git apply important-changes.patch
+#+end_src
+
+This approach can be useful if your branch is in a weird state so you can't push but you need to share some changes with a colleague.
+
+** Reflog, for when things go really wrong
+
+~git reflog~ to the rescue! Your local reflog tracks changes which are made to branches and commits over time which means that even if you accidentally reset your branch to a bad state and lose your commits, you can find them using ~git reflog~ and restore them.
+
+~git reflog~ shows you a list of all the latest changes and you can use ~git reflog --grep-reflog=PATTERN~ to search through your commit messages and find the commit IDs. Then you can apply those changes to your new branch using ~git cherry-pick~ as above.
+
+This means that very rarely do you irreversibly lose your work once it has been commited, so the lesson is: commit often!
+
+** Use the force... with lease
+
+~git push --force~ will overwrite the remote branch with your local branch, ~git push --force-with-lease~ on the other hand will only overwrite if there are *no new commits* on the remote branch which reduces the risk of overwriting your team mates changes. So, use the force but with lease.
