@@ -29,6 +29,10 @@ Rebasing onto main has the following benefits:
 + Debugging becomes a lot simpler since you just need to follow the linear git log back one commit at a time
 + It's easy for other feature branches to merge into main as well without confusing merge conflicts
 
+ | [[file:./images/non-linear-history.png]] | [[file:./images/linear-history.png]] |
+
+ Non-linear history vs. linear history
+
 ** Ensure the feature branch is up-to-date with main before merging
 
 This ensures that your main branch history stays linear and easy to follow and can be enforced in your Github settings section.
