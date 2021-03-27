@@ -108,7 +108,7 @@ If you have any uncommitted changes you can just stash them with ~git stash~ and
 $ git reset --hard origin/feature-branch-name
 #+end_src
 
-Use ~git stash pop~ to put your local changes back.
+Use ~git stash apply~ to put your local changes back.
 
 If you have commits which you need to add to the feature branch you have multiple options, the safest might be:
 
