@@ -147,7 +147,7 @@ You can put =.gitconfig= files in directories and have them take effect on all s
   path = ~/Projects/work/.gitconfig
 #+end_src
 
-Now you can easily separate private and work git settings.
+Now you can easily separate private and work git settings. Be sure to keep the trailing =/= at the end, since that is interpreted as =/**= and will therefore include all sub-directories.
 
 ** Patchwork
 
